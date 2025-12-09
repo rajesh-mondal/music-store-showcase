@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Store Showcase</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Custom styles */
+        .toolbar {
+            padding: 10px 0;
+        }
+
+        .data-container {
+            min-height: 500px;
+        }
+
+        .gallery-card {
+            min-height: 300px;
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .expandable-row {
+            cursor: pointer;
+        }
+
+        .expanded-details {
+            background-color: #f7f7f7;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container mt-4">
+        <h2>Music Showcase Generator</h2>
+
+        <div class="row align-items-center toolbar border-bottom mb-4">
+            <div class="col-md-3">
+                <label for="locale" class="form-label">Language/Region</label>
+                <select id="locale" class="form-select">
+                    <option value="en_US" selected>English (USA)</option>
+                    <option value="de_DE">German (Germany)</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label for="seed" class="form-label">Seed (64-bit)</label>
+                <div class="input-group">
+                    <input type="text" id="seed" class="form-control" value="123456789" maxlength="16">
+                    <button class="btn btn-outline-secondary" type="button" id="random-seed-btn">🎲 Random</button>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <label for="likes" class="form-label">Average Likes (0.0 - 10.0)</label>
+                <input type="number" id="likes" class="form-control" value="5.0" step="0.1" min="0" max="10">
+            </div>
+
+            <div class="col-md-3">
+                <label for="view-mode" class="form-label">Display Mode</label>
+                <select id="view-mode" class="form-select">
+                    <option value="table" selected>Table View (Pagination)</option>
+                    <option value="gallery">Gallery View (Infinite Scroll)</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="data-display" class="data-container">
+            <div class="text-center p-5 text-muted">Loading data...</div>
+        </div>
+
+        <nav id="pagination-controls" class="d-flex justify-content-center mt-3">
+            <ul class="pagination">
+            </ul>
+        </nav>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // State Management
+        let currentPage = 1;
+        let totalPages = 50;
+        let currentViewMode = 'table';
+        const recordsPerPage = 20;
+        let isLoading = false;
+
+        // DOM Elements
+        const $dataDisplay = document.getElementById('data-display');
+        const $locale = document.getElementById('locale');
+        const $seed = document.getElementById('seed');
+        const $likes = document.getElementById('likes');
+        const $viewMode = document.getElementById('view-mode');
+        const $randomSeedBtn = document.getElementById('random-seed-btn');
+        const $paginationControls = document.getElementById('pagination-controls');
+
+        // --- Utility Functions ---
+
+        /** Generates a random alphanumeric seed (16 chars for 64-bit visual representation) */
+        function generateRandomSeed() {
+            const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            let seed = '';
+            for (let i = 0; i < 16; i++) {
+                seed += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return seed;
+        }
+
+        /** Fetches data from the PHP API */
+        async function fetchData(page, append = false) {
+            if (isLoading) return;
+            isLoading = true;
+
+            const locale = $locale.value;
+            const seed = $seed.value;
+            const likes = $likes.value;
+
+            const params = new URLSearchParams({
+                action: 'get_data',
+                locale: locale,
+                seed: seed,
+                likes: likes,
+                page: page
+            });
+
+            try {
+                if (!append) {
+                    $dataDisplay.innerHTML = '<div class="text-center p-5"><div class="spinner-border" role="status"></div><p>Loading...</p></div>';
+                }
+
+                // const response = await fetch(`/public/api.php?${params.toString()}`);
+                const response = await fetch(`api.php?${params.toString()}`);
+                const result = await response.json();
+
+                currentPage = result.page;
+                totalPages = result.total_pages;
+
+                if (currentViewMode === 'table') {
+                    renderTable(result.data);
+                    renderPagination();
+                } else {
+                    renderGallery(result.data, append);
+                    if (append && result.data.length > 0) {
+                        window.removeEventListener('scroll', infiniteScrollHandler);
+                        window.addEventListener('scroll', infiniteScrollHandler);
+                    }
+                }
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                $dataDisplay.innerHTML = '<div class="alert alert-danger">Error loading data. Check the server endpoint.</div>';
+                // $dataDisplay.innerHTML = `<div class="alert alert-danger">Error loading data. Check the server endpoint. <br><strong>Reason:</strong> ${error.message}</div>`;
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        // Renderer Functions
+
+        /** Renders the data in Table View */
+        function renderTable(data) {
+            $paginationControls.style.display = 'flex';
+
+            let tableHTML = `
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Song Title</th>
+                            <th>Artist</th>
+                            <th>Album/Single</th>
+                            <th>Genre</th>
+                            <th class="text-end">Likes</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+            data.forEach(song => {
+                tableHTML += `
+                    <tr class="expandable-row" data-index="${song.index}" onclick="toggleDetails(this)">
+                        <td>${song.index}</td>
+                        <td>${song.title}</td>
+                        <td>${song.artist}</td>
+                        <td>${song.album}</td>
+                        <td>${song.genre}</td>
+                        <td class="text-end">👍 ${song.likes}</td>
+                    </tr>
+                    <tr class="expanded-details d-none" id="details-${song.index}">
+                        <td colspan="6">
+                            <div class="row p-3">
+                                <div class="col-md-4">
+                                    <img src="${song.cover_url}" class="img-fluid border" alt="Album Cover Placeholder">
+                                </div>
+                                <div class="col-md-8">
+                                    <h5>Details for: ${song.title}</h5>
+                                    <button class="btn btn-sm btn-primary mb-2" onclick="playPreview('${song.preview_url}')">
+                                        ▶️ Play Preview Clip
+                                    </button>
+                                    <p class="text-muted">Review:</p>
+                                    <blockquote class="blockquote">${song.review}</blockquote>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>`;
+            });
+
+            tableHTML += `</tbody></table>`;
+            $dataDisplay.innerHTML = tableHTML;
+        }
+
+        // Toggles the expansion of a table row
+        window.toggleDetails = function (row) {
+            const index = row.getAttribute('data-index');
+            const detailsRow = document.getElementById(`details-${index}`);
+            detailsRow.classList.toggle('d-none');
+            row.classList.toggle('table-primary');
+        }
+
+        /** Renders the data in Gallery View (with infinite scroll) */
+        function renderGallery(data, append) {
+            $paginationControls.style.display = 'none';
+
+            let galleryHTML = append ? '' : '<div class="row" id="gallery-container"></div>';
+
+            let cardsHTML = '';
+            data.forEach(song => {
+                cardsHTML += `
+                    <div class="col-sm-6 col-md-4 col-lg-3">
+                        <div class="gallery-card shadow-sm">
+                            <h5 class="text-truncate">${song.title}</h5>
+                            <p class="text-muted small">${song.artist} (${song.genre})</p>
+                            <img src="${song.cover_url}" class="img-fluid mb-2 border" alt="Cover Placeholder">
+                            <p class="mb-1"><strong>Album:</strong> ${song.album}</p>
+                            <p><strong>Likes:</strong> 👍 ${song.likes}</p>
+                            <button class="btn btn-sm btn-outline-primary" onclick="playPreview('${song.preview_url}')">
+                                ▶️ Preview
+                            </button>
+                        </div>
+                    </div>`;
+            });
+
+            if (!append) {
+                $dataDisplay.innerHTML = galleryHTML;
+                document.getElementById('gallery-container').innerHTML = cardsHTML;
+            } else {
+                document.getElementById('gallery-container').insertAdjacentHTML('beforeend', cardsHTML);
+            }
+        }
+
+        /** Handles rendering the pagination controls for Table View */
+        function renderPagination() {
+            let paginationHTML = '';
+            const maxPagesToShow = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+            let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+            if (endPage - startPage + 1 < maxPagesToShow) {
+                startPage = Math.max(1, endPage - maxPagesToShow + 1);
+            }
+
+            // Previous button
+            paginationHTML += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Previous</a></li>`;
+
+            // Page numbers
+            for (let i = startPage; i <= endPage; i++) {
+                paginationHTML += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${i})">${i}</a></li>`;
+            }
+
+            // Next button
+            paginationHTML += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Next</a></li>`;
+
+            $paginationControls.querySelector('.pagination').innerHTML = paginationHTML;
+        }
+
+        // Action Handlers
+        window.playPreview = function (url) {
+            console.log(`Playing audio from: ${url}`);
+            alert('Playing a short music preview! (Check console for URL)');
+        }
+
+        window.changePage = function (page) {
+            if (page < 1 || page > totalPages || page === currentPage) return;
+            currentPage = page;
+            fetchData(currentPage);
+        }
+
+        /** Handler for changes in controls (locale, seed, likes) */
+        function parameterChangeHandler() {
+            currentPage = 1;
+            if (currentViewMode === 'gallery') {
+                $dataDisplay.innerHTML = '';
+                window.scrollTo(0, 0);
+            }
+            fetchData(currentPage, false);
+        }
+
+        /** Handler for view mode change (Gallery) */
+        function viewModeChangeHandler() {
+            currentViewMode = $viewMode.value;
+            currentPage = 1;
+            window.removeEventListener('scroll', infiniteScrollHandler);
+
+            if (currentViewMode === 'gallery') {
+                $dataDisplay.innerHTML = '';
+                window.addEventListener('scroll', infiniteScrollHandler);
+            }
+
+            fetchData(currentPage, false);
+        }
+
+        /** Infinite scroll logic for Gallery View */
+        function infiniteScrollHandler() {
+            if (currentViewMode !== 'gallery' || isLoading) return;
+
+            const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+
+            if (scrollTop + clientHeight >= scrollHeight * 0.9 && currentPage < totalPages) {
+                console.log(`Loading page ${currentPage + 1}...`);
+                fetchData(currentPage + 1, true);
+            }
+        }
+
+        // Dynamic data update on control change
+        $locale.addEventListener('change', parameterChangeHandler);
+        $seed.addEventListener('input', parameterChangeHandler);
+        $likes.addEventListener('input', parameterChangeHandler);
+        $viewMode.addEventListener('change', viewModeChangeHandler);
+
+        // Random Seed Button
+        $randomSeedBtn.addEventListener('click', () => {
+            $seed.value = generateRandomSeed();
+            parameterChangeHandler();
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            $seed.value = generateRandomSeed();
+
+            // Set up initial view mode and fetch data
+            currentViewMode = $viewMode.value;
+            if (currentViewMode === 'gallery') {
+                window.addEventListener('scroll', infiniteScrollHandler);
+            }
+            fetchData(currentPage, false);
+        });
+
+    </script>
+
+</body>
+
+</html>
