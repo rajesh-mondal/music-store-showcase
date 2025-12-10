@@ -102,6 +102,39 @@ class Generator {
         }
     }
 
+    // public function generateBatch( string $seed, float $average_likes, int $page, int $count = self::RECORDS_PER_PAGE ): array {
+    //     $songs = [];
+    //     $start_index = ( $page - 1 ) * $count + 1;
+
+    //     for ( $i = 0; $i < $count; $i++ ) {
+    //         $sequence_index = $start_index + $i;
+
+    //         // Generate reproducible core content
+    //         $title = $this->generateTitle( $seed, $sequence_index );
+    //         $artist = $this->generateArtist( $seed, $sequence_index );
+    //         $album = $this->generateAlbum( $seed, $sequence_index );
+    //         $genre = $this->generateGenre( $seed, $sequence_index );
+    //         $review = $this->generateReview( $seed, $sequence_index );
+
+    //         // Generate reproducible like count
+    //         $likes = $this->generateLikes( $seed, $sequence_index, $average_likes );
+
+    //         $songs[] = [
+    //             'index'       => $sequence_index,
+    //             'title'       => $title,
+    //             'artist'      => $artist,
+    //             'album'       => $album,
+    //             'genre'       => $genre,
+    //             'likes'       => $likes,
+    //             'review'      => $review,
+    //             'cover_url'   => 'api.php?action=get_cover&seed=' . urlencode( $seed ) . '&index=' . $sequence_index . '&title=' . urlencode( $title ) . '&artist=' . urlencode( $artist ),
+    //             'preview_url' => 'api.php?action=get_preview&seed=' . urlencode( $seed ) . '&index=' . $sequence_index,
+    //         ];
+    //     }
+
+    //     return $songs;
+    // }
+
     public function generateBatch( string $seed, float $average_likes, int $page, int $count = self::RECORDS_PER_PAGE ): array {
         $songs = [];
         $start_index = ( $page - 1 ) * $count + 1;

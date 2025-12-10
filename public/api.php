@@ -10,6 +10,7 @@ require_once __DIR__ . '/../src/Database/config.php';
 
 use App\Data\Generator;
 use App\Data\ImageGenerator;
+use App\Data\MusicSynthesizer;
 
 // Set default parameters
 $seed = $_GET['seed'] ?? '123456789';
@@ -47,8 +48,22 @@ case 'get_cover':
     exit();
 
 case 'get_preview':
-    header( 'Content-Type: application/json' );
-    echo json_encode( ['error' => 'Audio generation not implemented in this skeleton.'] );
+
+    $preview_seed = $_GET['seed'] ?? '';
+    $index = (int) ( $_GET['index'] ?? 0 );
+
+    if ( $preview_seed && $index > 0 ) {
+        // Instantiate the Synthesizer
+        $synthesizer = new MusicSynthesizer();
+
+        // Generate and output the reproducible audio data
+        $synthesizer->generatePreview( $preview_seed, $index );
+    } else {
+        header( 'Content-Type: application/json' );
+        http_response_code( 400 );
+        echo json_encode( ['error' => 'Missing seed or index for music preview.'] );
+    }
+
     break;
 
 default:

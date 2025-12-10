@@ -198,9 +198,12 @@
                                 </div>
                                 <div class="col-md-8">
                                     <h5>Details for: ${song.title}</h5>
-                                    <button class="btn btn-sm btn-primary mb-2" onclick="playPreview('${song.preview_url}')">
-                                        ▶️ Play Preview Clip
-                                    </button>
+                                    
+                                    <audio controls preload="none" class="mb-3">
+                                        <source src="${song.preview_url}" type="audio/wav">
+                                        Your browser does not support the audio element.
+                                    </audio>
+
                                     <p class="text-muted">Review:</p>
                                     <blockquote class="blockquote">${song.review}</blockquote>
                                 </div>
@@ -237,9 +240,10 @@
                             <img src="${song.cover_url}" class="img-fluid mb-2 border" alt="Cover Placeholder">
                             <p class="mb-1"><strong>Album:</strong> ${song.album}</p>
                             <p><strong>Likes:</strong> 👍 ${song.likes}</p>
-                            <button class="btn btn-sm btn-outline-primary" onclick="playPreview('${song.preview_url}')">
-                                ▶️ Preview
-                            </button>
+                            <audio controls preload="none" style="width: 100%;">
+                                <source src="${song.preview_url}" type="audio/wav">
+                                Your browser does not support the audio element.
+                            </audio>
                         </div>
                     </div>`;
             });
@@ -278,12 +282,6 @@
                 <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Next</a></li>`;
 
             $paginationControls.querySelector('.pagination').innerHTML = paginationHTML;
-        }
-
-        // Action Handlers
-        window.playPreview = function (url) {
-            console.log(`Playing audio from: ${url}`);
-            alert('Playing a short music preview! (Check console for URL)');
         }
 
         window.changePage = function (page) {

@@ -3,7 +3,7 @@
 namespace App\Utils;
 
 class SeededRNG {
-    public static function getSeededInt( string $base_seed_value, int $item_index, string $seed_key, int $min, int $max ): int {
+    public static function getSeededInt( string $base_seed_value, int $item_index, string $seed_key, float $min = 0.0, float $max = 1.0 ): int {
         $combined_string = $base_seed_value . '|' . $item_index . '|' . $seed_key;
 
         $final_seed = crc32( $combined_string ) + crc32( md5( $combined_string ) );
