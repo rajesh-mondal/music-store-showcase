@@ -12,28 +12,91 @@ class Generator {
 
     private const RECORDS_PER_PAGE = 20;
 
+    // --- Hardcoded Locale Data
     private $locale_data = [
         'en_US' => [
-            'titles'         => ['Fast Carrot Plus', 'Midnight Drive', 'Echoes of Silence', 'Neon Heartbeat', 'Quantum Leap'],
-            'artists_person' => ['Sarah K.', 'John Doe', 'Maya Li'],
-            'artists_band'   => ['The Code Breakers', 'Bootstrap Boiz', 'Raw PHP'],
-            'genres'         => ['Rock', 'Pop', 'Electronic', 'Jazz'],
-            'reviews'        => ['A modern classic.', 'Visually stunning.', 'Perfect for a late-night drive.'],
+            'titles'         => [
+                "Fast Carrot Plus", "Midnight Drive", "Echoes of Silence", "Neon Heartbeat",
+                "Quantum Leap", "The Forgotten Algorithm", "Bootstrap Blues", "Raw PHP Revolution",
+            ],
+            'artists_person' => [
+                "Sarah K.", "John Doe", "Maya Li", "Alex Stone", "Elias Vance", "Olivia Chen",
+            ],
+            'artists_band'   => [
+                "The Code Breakers", "Bootstrap Boiz", "Raw PHP", "Syntax Error",
+                "The Lambda Functions", "Midnight Commit",
+            ],
+            'genres'         => ["Rock", "Pop", "Electronic", "Jazz", "Lo-Fi", "Hip-Hop"],
+            'reviews'        => [
+                "A modern classic that redefines the genre.", "Visually stunning and aurally immersive.",
+                "Perfect for a late-night drive, truly mesmerizing.", "A masterpiece of rhythm and code.",
+                "Simple, yet profoundly moving.", "An unexpected gem of digital sound.",
+            ],
+        ],
+        'de_DE' => [
+            'titles'         => [
+                "Schnelle Karotte Plus", "Mitternachtsfahrt", "Echos der Stille", "Neon Herzschlag",
+                "Quantensprung", "Der Vergessene Algorithmus", "Bootstrap Blues", "Rohe PHP Revolution",
+            ],
+            'artists_person' => [
+                "Lena Müller", "Klaus Schmidt", "Anja Bauer", "Timo Herbst", "Sina Vogt", "Max Richter",
+            ],
+            'artists_band'   => [
+                "Die Code Brecher", "Bootstrap Jungs", "Rohe PHP", "Syntax Fehler",
+                "Die Lambda Funktionen", "Mitternachts-Commit",
+            ],
+            'genres'         => ["Rock", "Pop", "Elektronisch", "Jazz", "Lo-Fi", "Hip-Hop"],
+            'reviews'        => [
+                "Ein moderner Klassiker, der das Genre neu definiert.", "Visuell beeindruckend und akustisch immersiv.",
+                "Perfekt für eine späte Nachtfahrt, wirklich faszinierend.", "Ein Meisterwerk aus Rhythmus und Code.",
+                "Einfach, aber zutiefst bewegend.", "Ein unerwartetes Juwel des digitalen Klangs.",
+            ],
         ],
     ];
+
+    private function loadDataFromFile( string $locale ): ?array {
+
+        $path = dirname( __DIR__ ) . "/Locales/{$locale}.json";
+
+        if ( file_exists( $path ) ) {
+            $json_content = file_get_contents( $path );
+
+            if ( $json_content === false ) {
+                return null;
+            }
+
+            $data = json_decode( $json_content, true );
+
+            if ( json_last_error() === JSON_ERROR_NONE && is_array( $data ) && !empty( $data['titles'] ) ) {
+                return $data;
+            }
+        }
+        return null;
+    }
 
     public function __construct( string $locale ) {
         $this->locale = $locale;
 
-        // Initialize the database dependency
-        $this->localData = new LocalData();
+        // Load data from the local JSON file
+        $file_data = $this->loadDataFromFile( $locale );
 
-        // Fetch data from the database using the initialized LocalData object
+        if ( $file_data !== null ) {
+            $this->data = $file_data;
+            return;
+        }
+
+        // Try the database (if JSON fails)
+        $this->localData = new LocalData();
         $db_data = $this->localData->getLocaleData( $this->locale );
 
-        // 3. Set the primary data array.
         if ( !empty( $db_data ) && !empty( $db_data['titles'] ) ) {
             $this->data = $db_data;
+            return;
+        }
+
+        // Last Resort: Hardcoded default data
+        if ( isset( $this->locale_data[$locale] ) ) {
+            $this->data = $this->locale_data[$locale];
         } else {
             $this->data = $this->locale_data['en_US'];
         }
