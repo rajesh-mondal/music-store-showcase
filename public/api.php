@@ -9,6 +9,7 @@ require __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/Database/config.php';
 
 use App\Data\Generator;
+use App\Data\ImageGenerator;
 
 // Set default parameters
 $seed = $_GET['seed'] ?? '123456789';
@@ -23,10 +24,9 @@ $seed = preg_replace( '/[^0-9a-zA-Z]/', '', $seed );
 
 $action = $_GET['action'] ?? 'get_data';
 
-header( 'Content-Type: application/json' );
-
 switch ( $action ) {
 case 'get_data':
+    header( 'Content-Type: application/json' );
     $generator = new Generator( $locale );
     $data = $generator->generateBatch( $seed, $average_likes, $page );
 
@@ -34,9 +34,17 @@ case 'get_data':
     break;
 
 case 'get_cover':
-    header( 'Content-Type: application/json' );
-    echo json_encode( ['error' => 'Cover image generation not implemented in this skeleton.'] );
-    break;
+    // Get image parameters
+    $seed = $_GET['seed'] ?? 'default';
+    $index = (int) ( $_GET['index'] ?? 1 );
+    $title = $_GET['title'] ?? 'Unknown Title';
+    $artist = $_GET['artist'] ?? 'Unknown Artist';
+
+    // Instantiate and generate the image
+    $imageGenerator = new ImageGenerator();
+    $imageGenerator->generateCover( $seed, $index, $title, $artist );
+
+    exit();
 
 case 'get_preview':
     header( 'Content-Type: application/json' );
@@ -44,6 +52,7 @@ case 'get_preview':
     break;
 
 default:
+    header( 'Content-Type: application/json' );
     http_response_code( 404 );
     echo json_encode( ['error' => 'Invalid API action.'] );
     break;
